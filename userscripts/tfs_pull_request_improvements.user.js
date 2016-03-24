@@ -53,7 +53,7 @@ function renderPrInfo(line, data) {
     if(data && data.reviewers && data.reviewers.length) {
         var iReviewed = false;
         var reviewers = '';
-        console.log(line, data);
+        //console.log(line, data);
         var score = 0;
         for(var revI = 0, revLen = data.reviewers.length; revI<revLen; revI++) {
             var reviewer = data.reviewers[revI];
