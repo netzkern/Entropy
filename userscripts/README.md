@@ -9,4 +9,5 @@ Die UserScripts können in Firefox mit GreaseMonkey und in Chrome mit TamperMonke
 ## Von netzkern-Mitarbeitern erstellte UserScripts
 
 [TFS Board Improvements](https://github.com/netzkern/Entropy/raw/master/userscripts/tfs_board_improvements.user.js)    
+[TFS Pull Request Improvements](https://github.com/netzkern/Entropy/raw/master/userscripts/tfs_pull_request_improvements.user.js)    
 [Octopus Deployment Presets](https://github.com/netzkern/Entropy/raw/master/userscripts/octopus_deployment_presets.user.js)    
