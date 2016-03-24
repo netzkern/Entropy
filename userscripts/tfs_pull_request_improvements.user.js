@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         TFS Pull Request improvements
 // @namespace    de.netzkern
-// @version      1.0.0
+// @version      1.0.1
 // @description  Some TFS improvements.
 // @author       Florian Koch . netzkern
 // @match        *://backlog.netzkern.de/tfs/*/pullrequests*
@@ -11,6 +11,7 @@
 'use strict';
 
 // changelog:
+// 1.0.1 - removed console.log... :)
 // 1.0.0 - show PR info on overview page.
 
 // CSS styling
