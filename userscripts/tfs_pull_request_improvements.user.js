@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         TFS Pull Request improvements
 // @namespace    de.netzkern
-// @version      1.0.1
+// @version      1.0.2
 // @description  Some TFS improvements.
 // @author       Florian Koch . netzkern
 // @match        *://backlog.netzkern.de/tfs/*/pullrequests*
@@ -11,6 +11,7 @@
 'use strict';
 
 // changelog:
+// 1.0.2 - removed blue border on PRs where user was added but you have not voted yet.
 // 1.0.1 - removed console.log... :)
 // 1.0.0 - show PR info on overview page.
 
@@ -58,7 +59,7 @@ function renderPrInfo(line, data) {
         var score = 0;
         for(var revI = 0, revLen = data.reviewers.length; revI<revLen; revI++) {
             var reviewer = data.reviewers[revI];
-            if(reviewer.id == currentIdentity.id) {
+            if(reviewer.id == currentIdentity.id && reviewer.vote !== 0) {
                 iReviewed = true;
             }
             score += reviewer.vote;
