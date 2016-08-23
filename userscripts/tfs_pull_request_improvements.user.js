@@ -1,19 +1,26 @@
 // ==UserScript==
 // @name         TFS Pull Request improvements
 // @namespace    de.netzkern
-// @version      1.0.2
+// @version      1.1.0
 // @description  Some TFS improvements.
 // @author       Florian Koch . netzkern
-// @match        *://backlog.netzkern.de/tfs/*/pullrequests*
+// @match        *://backlog.netzkern.de/tfs/*/pullrequest*
 // @grant        GM_addStyle
+// @grant        GM_getResourceText
+// @require      https://cdnjs.cloudflare.com/ajax/libs/remarkable/1.6.2/remarkable.min.js
+// @resource     mdCSS https://sindresorhus.com/github-markdown-css/github-markdown.css
 // ==/UserScript==
 /* jshint -W097 */
 'use strict';
 
 // changelog:
+// 1.1.0 - markdown support
 // 1.0.2 - removed blue border on PRs where user was added but you have not voted yet.
 // 1.0.1 - removed console.log... :)
 // 1.0.0 - show PR info on overview page.
+
+var mdCSS = GM_getResourceText("mdCSS");
+GM_addStyle (mdCSS);
 
 // CSS styling
 GM_addStyle ( "                                     \
@@ -45,11 +52,26 @@ GM_addStyle ( "                                     \
     .status.neg {                                   \
         color: red;                                 \
     }                                               \
+                                                    \
+    .markdown-body {                                \
+        font-size: inherit;                         \
+        line-height: inherit;                       \
+        color: black;                               \
+        font-family: inherit;                       \
+    }                                               \
+    .markdown-body ul, .markdown-body ol {          \
+        font-size: 0;                               \
+    }                                               \
+    .markdown-body li {                             \
+        font-size: 12px;                            \
+    }                                               \
 " );
 
 var currentIdentity;
 var $rightPane;
 var $prEntries;
+var prDesc;
+var md = new Remarkable();
 
 function renderPrInfo(line, data) {
     if(data && data.reviewers && data.reviewers.length) {
@@ -105,12 +127,33 @@ function showPrInfo(response) {
     }
 }
 
-$(document).ajaxComplete(function(event, request, settings) { // trigger after moving tasks
-    if(settings && settings.url && settings.url.indexOf('pullRequests?status=') >= 0 && settings.url.indexOf('pullRequests?status=1') < 0 && request.responseJSON) {
-        setTimeout(function() {
-            $rightPane = $('.rightPane');
-            $prEntries = $rightPane.find('.vc-pullrequest-entry');
-            showPrInfo(request.responseJSON);
-        }, 50);
+function renderMarkdown() {
+    if(prDesc) {
+        var $desc = $('.vc-pullrequest-entry-details-description');
+        if(!$desc.hasClass('markdown-body')) {
+            $desc.addClass('markdown-body');
+        }
+        $desc.html(md.render(prDesc));
     }
-});
+}
+
+if(window.location.pathname.indexOf('pullrequests') >= 0) { // PR overview
+    $(document).ajaxComplete(function(event, request, settings) { // trigger after moving tasks
+        if(settings && settings.url && settings.url.indexOf('pullRequests?status=') >= 0 && settings.url.indexOf('pullRequests?status=1') < 0 && request.responseJSON) {
+            setTimeout(function() {
+                $rightPane = $('.rightPane');
+                $prEntries = $rightPane.find('.vc-pullrequest-entry');
+                showPrInfo(request.responseJSON);
+            }, 50);
+        }
+    });
+} else { // PR detail
+    $(document).ajaxComplete(function(event, request, settings) { // trigger after moving tasks
+        if(settings && settings.url && settings.url.indexOf('/tfs/DefaultCollection/_apis/git/repositories/') >= 0 && settings.url.indexOf('/pullRequests/') >= 0 && settings.url.indexOf('/workitems') < 0 && request.responseJSON) {
+            prDesc = request.responseJSON.description;
+        }
+        setTimeout(function() {
+            renderMarkdown();
+        }, 50);
+    });
+}
