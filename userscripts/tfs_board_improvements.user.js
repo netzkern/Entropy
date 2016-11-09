@@ -1,16 +1,19 @@
 // ==UserScript==
 // @name         TFS Board improvements
 // @namespace    de.netzkern
-// @version      1.2.4
+// @version      1.3.0
 // @description  Some TFS improvements.
 // @author       Florian Koch . netzkern
-// @match        *://backlog.netzkern.de/tfs/*/_backlogs/board/*
+// @match        *://backlog.netzkern.de/tfs/*/_backlogs/*
 // @grant        GM_addStyle
+// @require      https://cdnjs.cloudflare.com/ajax/libs/remarkable/1.6.2/remarkable.min.js
+// @require      https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/1.5.13/clipboard.min.js
 // ==/UserScript==
 /* jshint -W097 */
 'use strict';
 
 // changelog:
+// 1.3.0 - Copy Item name to branch name
 // 1.2.4 - new filter: username
 // 1.2.3 - bugfix: prevent filters from appearing multiple times when moving tasks
 // 1.2.2 - board filter-presets
@@ -93,6 +96,15 @@ GM_addStyle ( "                                     \
         font-weight: bold;                          \
         color: #00f;                                \
     }                                               \
+    .copy-branch-name {                             \
+        margin-right: 10px;                         \
+        cursor: pointer;                            \
+    }                                               \
+    .copy-branch-name-text-container {              \
+        position: absolute;                         \
+        opacity: 0.001;                             \
+        display: none;                              \
+    }                                               \
 " );
 
 var timerDelay = 200;
@@ -139,7 +151,7 @@ var sp3Ga3KBMD25M4HR = function () {
     var user = $user.find('.text').text();
     var currentIteration = $currentIteration.find('> .tree-children .node-content').text();
     var currentVersion = parseVersion(currentIteration);
-    
+
     // filter-presets
     var $searchContainer = $('.hub-pivot .filters .agile-board-search-container');
     var enterEvent = jQuery.Event( 'keyup', { which: $.ui.keyCode.ENTER } );
@@ -160,8 +172,8 @@ var sp3Ga3KBMD25M4HR = function () {
     var $filterPresetsText = $('<li><a class="text">Filter:</a></li>');
     $filterPresets.append($filterPresetsText);
     // filter current iteration
-    var $filterCurrentIteration = $('<li><a href="#" data-filtervalue="' + currentIteration + '">' + currentIteration + '</a></li>');    
-    $filterCurrentIteration.click(filterPreset);    
+    var $filterCurrentIteration = $('<li><a href="#" data-filtervalue="' + currentIteration + '">' + currentIteration + '</a></li>');
+    $filterCurrentIteration.click(filterPreset);
     $filterPresets.append($filterCurrentIteration);
     // filter user
     var $filterUser = $('<li><a href="#" data-filtervalue="' + user + '">' + user + '</a></li>');
@@ -170,19 +182,19 @@ var sp3Ga3KBMD25M4HR = function () {
     // clear old and add filters
     $filters.find('.filter-presets').remove();
     $filters.prepend($filterPresets);
-    
+
     // main tile loop
     $tiles.each(function() {
         var $this = $(this);
-        
+
         var specialCell = $this.closest('.cell').children('.label').text();
         var $boardTile = $this.closest('.board-tile');
         var $assignedTo = $this.find('[field="System.AssignedTo"]');
-        
+
         // reset
         $boardTile.removeClass('older-than-current').removeClass('not-current');
         $assignedTo.removeClass('highlight');
-        
+
         if(!specialCell) {
             var iteration = $this.find('[field="System.IterationPath"] .field-inner-element').text();
             if(currentVersion) {
@@ -207,10 +219,72 @@ var sp3Ga3KBMD25M4HR = function () {
         }
     });
 }
-setTimeout(sp3Ga3KBMD25M4HR, timerDelay);
+
+if(window.location.href.indexOf('/_backlogs/board/') > 0) {
+    setTimeout(sp3Ga3KBMD25M4HR, timerDelay);
+
+    $(document).ajaxComplete(function(event, request, settings) { // trigger after moving tasks
+        if(settings && settings.url && (settings.url.indexOf('_api/_wit/updateWorkItems') > 0 || settings.url.indexOf('_api/_ReorderWorkItems/ReorderWorkItems') > 0)) {
+            setTimeout(sp3Ga3KBMD25M4HR, timerDelay);
+        }
+    });
+}
 
 $(document).ajaxComplete(function(event, request, settings) { // trigger after moving tasks
-    if(settings && settings.url && (settings.url.indexOf('_api/_wit/updateWorkItems') > 0 || settings.url.indexOf('_api/_ReorderWorkItems/ReorderWorkItems') > 0)) {
-        setTimeout(sp3Ga3KBMD25M4HR, timerDelay);
+    if(settings && settings.url && (settings.url.indexOf('_apis/core/identityMru') > 0 || settings.url.indexOf('_apis/customerintelligence/Events') > 0 || settings.url.indexOf('_api/_wit/pageWorkItems') > 0)) {
+        var $workItemInfoBar = $('.ui-dialog .workitem-info-bar .info-text-wrapper');
+        if($workItemInfoBar.length) {
+            var caption = $workItemInfoBar.find('.caption').text();
+            var infoText = $workItemInfoBar.find('.info-text').text();
+            var rawName = caption + ' ' + infoText;
+            var branchName = rawName;
+            branchName = branchName.replace('Product Backlog Item', 'PBI');
+            branchName = branchName.replace(/\s/g, '_');
+            branchName = branchName.replace(/ä/g, 'ae');
+            branchName = branchName.replace(/Ä/g, 'Ae');
+            branchName = branchName.replace(/ö/g, 'oe');
+            branchName = branchName.replace(/Ö/g, 'Oe');
+            branchName = branchName.replace(/ü/g, 'ue');
+            branchName = branchName.replace(/Ü/g, 'Ue');
+            branchName = branchName.replace(/ß/g, 'ss');
+            branchName = branchName.replace(/\W/g, '');
+            var $copyBranchName = $workItemInfoBar.find('.copy-branch-name');
+            if(!$copyBranchName.length) {
+                var $copyBranchNameTextContainer = $('<div>', {
+                    class: 'copy-branch-name-text-container'
+                });
+                var $copyBranchNameText = $('<input>', {
+                    type: 'text',
+                    value: branchName,
+                    id: 'copy-branch-name-text'
+                }).prependTo($copyBranchNameTextContainer);
+                var $copyBranchName = $('<button>', {
+                    class: 'copy-branch-name',
+                    title: 'Branchnamen kopieren',
+                    'data-clipboard-target': '#copy-branch-name-text'
+                });
+                $copyBranchNameImg = $('<img>', {
+                    width: 14,
+                    height: 16,
+                    src: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEYAAABQCAAAAACBylzeAAABYklEQVRYw+3YvZHCMBCG4TekAjKaoQnSixVSgku40Llm3AaRcwfOVIsu8MAZI7Gr9Yb+IjQjHqFfG5GrGbvr6XTtxqwIVYRXRjvTsUpnZd4UhYPUI12/yszy3ZByTmH5bGEeAAxLYQDgYWDuAOFZCgB3A3MBSM9SArgYmM1oKAaHnKcbpWwHfJPb9M70lKv91yk3Q79m5nIdVo1NchWC3JTiB3OWO946fCFJeycFmRk0J8sgMSGrEgQm6ZgkMFkZ9QrV5mD0TG7OwVgYxYQczD5Gzq8LE/FgIh5MxIOJKJnqs/elIBzzH0wsKnuZiAcTMTJ9UVExX+eo8Yjfo+Cj4KPUmb798VeaqZ1MtHeqvPyiD9M84bVV7LP8vDZD49ZUODuZlmNL4bSeN5+DYTrSC2MafRjt405cUNGHcXoVON6LbczZ5x9MsCs/ijsKRWbFjYmcqLq/kXo0q24hGyfuYKr5AwjYM/CQ2zySAAAAAElFTkSuQmCC'
+                }).prependTo($copyBranchName);
+                $copyBranchName.prependTo($workItemInfoBar);
+                $copyBranchNameTextContainer.prependTo($workItemInfoBar);
+            }
+        }
+
+        $workItemInfoBar.off('click.copybranch').on('click.copybranch', '.copy-branch-name', function (e) {
+            var $copyBranchNameTextContainer = $('.copy-branch-name-text-container');
+            $copyBranchNameTextContainer.show();
+            setTimeout(function() {
+                $copyBranchNameTextContainer.hide();
+            }, 10);
+        });
     }
 });
+
+var clipboard = new Clipboard('.copy-branch-name');
+
+if(window.location.href.indexOf('/_backlogs/TaskBoard/') > 0) {
+    // for later ;)
+}
